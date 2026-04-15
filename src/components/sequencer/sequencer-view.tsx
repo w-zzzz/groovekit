@@ -166,10 +166,6 @@ export function SequencerView() {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 text-foreground md:p-6">
       <header className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
-        <h1 className="text-lg font-semibold tracking-tight md:text-xl">
-          Sequencer
-        </h1>
-
         <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:gap-6">
           <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-sm">
             <span className="text-muted-foreground">Tempo · {tempo} BPM</span>

@@ -24,12 +24,7 @@ export function ProfileDashboard({ className }: { className?: string }) {
   const unlockedSet = new Set(unlocked);
 
   return (
-    <div className={cn('mx-auto max-w-5xl space-y-10 px-4 py-8 text-zinc-100', className)}>
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Progress</h1>
-        <p className="text-sm text-zinc-400">Your practice journey, skills, and milestones.</p>
-      </header>
-
+    <div className={cn('mx-auto max-w-5xl space-y-10 px-4 text-zinc-100', className)}>
       <section className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-xl shadow-black/40 backdrop-blur-sm">
         <XpBar level={level} currentXpInLevel={current} requiredXpForNext={required} />
         <div className="mt-6 flex items-center gap-3 rounded-xl border border-orange-500/20 bg-orange-950/20 px-4 py-3">

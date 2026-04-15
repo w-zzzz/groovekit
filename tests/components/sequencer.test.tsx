@@ -97,8 +97,7 @@ describe('Sequencer', () => {
 
   it('renders a Clear control in the transport bar', () => {
     render(<SequencerView />);
-    const header = screen.getByRole('heading', { name: /sequencer/i }).closest('header')!;
-    expect(within(header).getByRole('button', { name: /^clear$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^clear$/i })).toBeInTheDocument();
   });
 
   it('renders a pattern Save button', () => {

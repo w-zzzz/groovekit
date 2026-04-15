@@ -30,13 +30,13 @@ export function levelFromXp(totalXp: number): number {
 
 export function xpToNextLevel(totalXp: number): { current: number; required: number; progress: number } {
   const level = levelFromXp(totalXp);
-  let xpAtLevel = 0;
-  for (let i = 1; i <= level; i++) {
-    xpAtLevel += xpForLevel(i);
+  let xpConsumed = 0;
+  for (let i = 2; i <= level; i++) {
+    xpConsumed += xpForLevel(i);
   }
-  const current = totalXp - xpAtLevel;
+  const current = Math.max(0, totalXp - xpConsumed);
   const required = xpForLevel(level + 1);
-  return { current, required, progress: required > 0 ? current / required : 0 };
+  return { current, required, progress: required > 0 ? Math.min(1, current / required) : 0 };
 }
 
 export function getLevelTitle(level: number): string {

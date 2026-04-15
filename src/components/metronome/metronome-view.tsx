@@ -48,14 +48,9 @@ export function MetronomeView() {
       `}</style>
 
       <div className="mx-auto flex max-w-2xl flex-col gap-8 px-4 py-8">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Metronome
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Practice with precise timing, accents, and optional speed-up.
-          </p>
-        </header>
+        <p className="text-sm text-muted-foreground">
+          Practice with precise timing, accents, and optional speed-up.
+        </p>
 
         <section className="flex flex-col items-center gap-6">
           <div className="relative flex h-64 w-64 items-center justify-center">

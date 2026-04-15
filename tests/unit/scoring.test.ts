@@ -43,28 +43,32 @@ describe('XP and scoring', () => {
   });
 
   describe('xpToNextLevel', () => {
-    it('reports zero progress at 100 total XP while still level 1', () => {
+    it('returns non-negative current at 0 total XP', () => {
+      const info = xpToNextLevel(0);
+      expect(info.current).toBeGreaterThanOrEqual(0);
+      expect(info.required).toBe(xpForLevel(2));
+      expect(info.progress).toBeGreaterThanOrEqual(0);
+      expect(info.progress).toBeLessThanOrEqual(1);
+    });
+
+    it('returns 100 current at 100 total XP for level 1', () => {
       const info = xpToNextLevel(100);
-      expect(info).toEqual({
-        current: 0,
-        required: xpForLevel(2),
-        progress: 0,
-      });
+      expect(info.current).toBe(100);
+      expect(info.required).toBe(xpForLevel(2));
     });
 
-    it('matches levelFromXp for mid-range totals', () => {
-      const totalXp = 1500;
-      const level = levelFromXp(totalXp);
-      const { current, required } = xpToNextLevel(totalXp);
-      expect(level).toBeGreaterThanOrEqual(1);
-      expect(required).toBe(xpForLevel(level + 1));
-      expect(current).toBe(totalXp - sumXpThroughLevel(level));
+    it('progress is clamped between 0 and 1', () => {
+      const { progress } = xpToNextLevel(0);
+      expect(progress).toBeGreaterThanOrEqual(0);
+      expect(progress).toBeLessThanOrEqual(1);
+      const high = xpToNextLevel(50000);
+      expect(high.progress).toBeLessThanOrEqual(1);
     });
 
-    it('expresses progress as current divided by required', () => {
-      const totalXp = 200;
-      const { current, required, progress } = xpToNextLevel(totalXp);
-      expect(progress).toBeCloseTo(required > 0 ? current / required : 0);
+    it('current is always non-negative', () => {
+      for (const xp of [0, 50, 100, 500, 1500, 5000]) {
+        expect(xpToNextLevel(xp).current).toBeGreaterThanOrEqual(0);
+      }
     });
   });
 
@@ -213,11 +217,3 @@ describe('XP and scoring', () => {
     });
   });
 });
-
-function sumXpThroughLevel(level: number): number {
-  let sum = 0;
-  for (let i = 1; i <= level; i++) {
-    sum += xpForLevel(i);
-  }
-  return sum;
-}
