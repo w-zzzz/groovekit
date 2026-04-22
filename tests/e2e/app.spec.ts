@@ -50,8 +50,8 @@ test('navigate to rudiments', async ({ page }) => {
 test('navigate to grooves', async ({ page }) => {
   await page.goto('/grooves');
   await expect(page.getByRole('heading', { name: 'Groove Explorer' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Rock' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Funk' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Rock', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Funk', exact: true })).toBeVisible();
 });
 
 test('navigate to metronome', async ({ page }) => {
@@ -80,7 +80,7 @@ test('navigate to profile', async ({ page }) => {
 });
 
 test('sidebar navigation on desktop', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === 'mobile', 'Desktop layout only');
+  test.skip(testInfo.project.name.startsWith('mobile'), 'Desktop layout only');
 
   await page.goto('/pad');
   const sidebar = page.locator('aside');
@@ -120,15 +120,35 @@ test('lesson list shows lessons', async ({ page }) => {
 test('sequencer grid renders', async ({ page }) => {
   await page.goto('/sequencer');
   const stepCells = page.locator('main button[aria-label*="step"]');
+  // Auto-waits for hydration + Suspense resolution (important on slower
+  // WebKit/mobile runners) instead of reading .count() synchronously.
+  await expect(stepCells.first()).toBeVisible();
   expect(await stepCells.count()).toBeGreaterThanOrEqual(100);
 });
 
+test('sequencer shared URL restores tempo', async ({ page }) => {
+  // Encoded form of { s:16, t:174, w:0, g:{} } — a valid empty-grid pattern
+  // at 174 BPM. Verifies that ?p= on the sequencer page decodes and applies
+  // correctly across Chromium/WebKit/Firefox engines.
+  const encoded = 'eyJzIjoxNiwidCI6MTc0LCJ3IjowLCJnIjp7fX0';
+  await page.goto(`/sequencer?p=${encoded}`);
+  await expect(page.getByText(/Tempo · 174 BPM/i)).toBeVisible();
+});
+
 test('mobile bottom navigation is visible', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile', 'Mobile project only');
+  test.skip(
+    !testInfo.project.name.startsWith('mobile'),
+    'Mobile projects only',
+  );
 
   await page.goto('/pad');
   const bottomNav = page.locator('.flex.min-h-screen > nav');
   await expect(bottomNav).toBeVisible();
   await expect(bottomNav.getByRole('link', { name: 'Drum Pad' })).toBeVisible();
   await expect(bottomNav.getByRole('link', { name: 'Learn' })).toBeVisible();
+  // After the mobile nav refactor every section — including the previously
+  // hidden Sequencer / Rhythm Game / Profile — must be reachable on phones.
+  await expect(bottomNav.getByRole('link', { name: 'Sequencer' })).toBeVisible();
+  await expect(bottomNav.getByRole('link', { name: 'Rhythm Game' })).toBeVisible();
+  await expect(bottomNav.getByRole('link', { name: 'Profile' })).toBeVisible();
 });

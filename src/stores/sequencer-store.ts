@@ -10,6 +10,56 @@ function createEmptyGrid(steps: number): Record<DrumPiece, (Velocity | null)[]> 
   return grid;
 }
 
+// Unicode-safe, URL-safe base64 so shared patterns round-trip through email
+// clients, chat apps, and browsers that may percent-encode `+` and `/`.
+function encodeBase64Url(input: string): string {
+  if (typeof window === 'undefined') return '';
+  const utf8 = new TextEncoder().encode(input);
+  let binary = '';
+  for (const byte of utf8) binary += String.fromCharCode(byte);
+  return window
+    .btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function decodeBase64Url(input: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    let s = input.replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4 !== 0) s += '=';
+    const binary = window.atob(s);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeLoadedGrid(
+  raw: unknown,
+  steps: number,
+): Record<DrumPiece, (Velocity | null)[]> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const src = raw as Record<string, unknown>;
+  const out = createEmptyGrid(steps);
+  for (const piece of DRUM_PIECES) {
+    const row = src[piece];
+    if (!Array.isArray(row)) continue;
+    for (let i = 0; i < Math.min(steps, row.length); i++) {
+      const cell = row[i];
+      if (cell === 'ghost' || cell === 'normal' || cell === 'accent') {
+        out[piece][i] = cell;
+      } else {
+        out[piece][i] = null;
+      }
+    }
+  }
+  return out;
+}
+
 interface SequencerState {
   steps: number;
   tempo: number;
@@ -30,6 +80,7 @@ interface SequencerState {
   savePattern: (name: string) => void;
   loadPattern: (id: string) => void;
   toShareableUrl: () => string;
+  loadFromEncoded: (encoded: string) => boolean;
 }
 
 export const useSequencerStore = create<SequencerState>((set, get) => ({
@@ -96,7 +147,34 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
   toShareableUrl: () => {
     const s = get();
     const data = { s: s.steps, t: s.tempo, w: s.swing, g: s.grid };
-    const encoded = btoa(JSON.stringify(data));
-    return `${typeof window !== 'undefined' ? window.location.origin : ''}/sequencer?p=${encoded}`;
+    const encoded = encodeBase64Url(JSON.stringify(data));
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${origin}/sequencer?p=${encoded}`;
+  },
+
+  loadFromEncoded: (encoded) => {
+    const json = decodeBase64Url(encoded);
+    if (!json) return false;
+    let data: unknown;
+    try {
+      data = JSON.parse(json);
+    } catch {
+      return false;
+    }
+    if (!data || typeof data !== 'object') return false;
+    const d = data as { s?: unknown; t?: unknown; w?: unknown; g?: unknown };
+    const steps = d.s === 32 ? 32 : 16;
+    const tempo =
+      typeof d.t === 'number' && Number.isFinite(d.t)
+        ? Math.max(30, Math.min(300, d.t))
+        : 120;
+    const swing =
+      typeof d.w === 'number' && Number.isFinite(d.w)
+        ? Math.max(0, Math.min(1, d.w))
+        : 0;
+    const grid = sanitizeLoadedGrid(d.g, steps);
+    if (!grid) return false;
+    set({ steps, tempo, swing, grid, currentStep: -1, isPlaying: false });
+    return true;
   },
 }));

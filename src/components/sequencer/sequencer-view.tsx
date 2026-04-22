@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useSequencerStore } from '@/stores/sequencer-store';
 import {
   clearTransport,
@@ -51,9 +52,20 @@ export function SequencerView() {
   const savePattern = useSequencerStore((s) => s.savePattern);
   const loadPattern = useSequencerStore((s) => s.loadPattern);
   const toShareableUrl = useSequencerStore((s) => s.toShareableUrl);
+  const loadFromEncoded = useSequencerStore((s) => s.loadFromEncoded);
+
+  const searchParams = useSearchParams();
+  const sharedPatternParam = searchParams?.get('p') ?? null;
 
   const [copied, setCopied] = useState(false);
   const [loadValue, setLoadValue] = useState('');
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [saveName, setSaveName] = useState('');
+  const [saveOpen, setSaveOpen] = useState(false);
+  const saveInputRef = useRef<HTMLInputElement | null>(null);
+  const shareLinkRef = useRef<HTMLInputElement | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const handledShareParamRef = useRef<string | null>(null);
 
   const gridRef = useRef(grid);
   const stepsRef = useRef(steps);
@@ -125,6 +137,19 @@ export function SequencerView() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!sharedPatternParam) return;
+    if (handledShareParamRef.current === sharedPatternParam) return;
+    handledShareParamRef.current = sharedPatternParam;
+    loadFromEncoded(sharedPatternParam);
+  }, [sharedPatternParam, loadFromEncoded]);
+
+  useEffect(() => {
+    if (!saveOpen) return;
+    const id = window.setTimeout(() => saveInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [saveOpen]);
+
   const handlePlayStop = useCallback(async () => {
     if (isPlaying) {
       clearTransport();
@@ -136,21 +161,54 @@ export function SequencerView() {
     setPlaying(true);
   }, [isPlaying, setPlaying]);
 
-  const handleSave = useCallback(() => {
-    const name = window.prompt('Pattern name');
-    if (!name?.trim()) return;
-    savePattern(name.trim());
-  }, [savePattern]);
+  const openSaveDialog = useCallback(() => {
+    setSaveName('');
+    setSaveOpen(true);
+  }, []);
+
+  const confirmSave = useCallback(() => {
+    const trimmed = saveName.trim();
+    if (!trimmed) return;
+    savePattern(trimmed);
+    setSaveOpen(false);
+    setSaveName('');
+  }, [saveName, savePattern]);
+
+  const cancelSave = useCallback(() => {
+    setSaveOpen(false);
+    setSaveName('');
+  }, []);
 
   const handleShare = useCallback(async () => {
     const url = toShareableUrl();
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      window.prompt('Copy link:', url);
+    setShareUrl(url);
+    setShareError(null);
+    const hasAsyncClipboard =
+      typeof navigator !== 'undefined' &&
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === 'function' &&
+      window.isSecureContext;
+    if (hasAsyncClipboard) {
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+        return;
+      } catch {
+        // Fall through to the inline copy affordance.
+      }
     }
+    // Inline fallback: render a read-only input, select its contents, and let
+    // the user copy with their system shortcut. This works on every browser,
+    // including http:// LAN deploys where the Async Clipboard API is blocked.
+    setShareError('Copy blocked — press Ctrl/Cmd+C to copy the link below.');
+    window.requestAnimationFrame(() => {
+      const el = shareLinkRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    });
   }, [toShareableUrl]);
 
   const handleLoadChange = useCallback(
@@ -250,9 +308,42 @@ export function SequencerView() {
           <span className="text-sm font-medium text-muted-foreground">
             Pattern
           </span>
-          <Button type="button" size="sm" onClick={handleSave}>
-            Save
-          </Button>
+          {saveOpen ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                confirmSave();
+              }}
+              className="flex flex-wrap items-center gap-2"
+            >
+              <label htmlFor="pattern-name" className="sr-only">
+                Pattern name
+              </label>
+              <input
+                id="pattern-name"
+                ref={saveInputRef}
+                type="text"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') cancelSave();
+                }}
+                placeholder="Pattern name"
+                maxLength={60}
+                className="h-9 min-w-[10rem] rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <Button type="submit" size="sm" disabled={!saveName.trim()}>
+                Save
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={cancelSave}>
+                Cancel
+              </Button>
+            </form>
+          ) : (
+            <Button type="button" size="sm" onClick={openSaveDialog}>
+              Save
+            </Button>
+          )}
 
           <div className="flex items-center gap-2">
             <label htmlFor="sequencer-load" className="sr-only">
@@ -262,7 +353,7 @@ export function SequencerView() {
               id="sequencer-load"
               value={loadValue}
               onChange={handleLoadChange}
-              className="h-9 min-w-[10rem] rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="select-dark h-9 min-w-[10rem] rounded-lg border border-border bg-muted/30 px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="">Load…</option>
               {patterns.map((p) => (
@@ -276,23 +367,34 @@ export function SequencerView() {
           <Button type="button" size="sm" variant="secondary" onClick={() => void handleShare()}>
             {copied ? 'Copied' : 'Share URL'}
           </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (isPlaying) {
-                clearTransport();
-                getTransport().stop();
-                setPlaying(false);
-              }
-              clearGrid();
-            }}
-          >
-            Clear grid
-          </Button>
         </div>
+
+        {shareUrl && (shareError || copied) && (
+          <div
+            className={cn(
+              'flex flex-col gap-2 rounded-xl border p-3 text-sm sm:flex-row sm:items-center',
+              shareError
+                ? 'border-amber-500/40 bg-amber-950/20 text-amber-100'
+                : 'border-emerald-500/30 bg-emerald-950/20 text-emerald-100'
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            <span className="flex-1">{shareError ?? 'Link copied to clipboard.'}</span>
+            <label htmlFor="share-link" className="sr-only">
+              Shareable link
+            </label>
+            <input
+              id="share-link"
+              ref={shareLinkRef}
+              type="text"
+              readOnly
+              value={shareUrl}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-md border border-border bg-background/40 px-2 py-1 text-xs text-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+        )}
 
         <div className="flex min-w-0 gap-0 rounded-lg border border-border bg-card">
           <div className="sticky left-0 z-10 flex shrink-0 flex-col border-r border-border bg-card py-0.5 pl-3 pr-2">

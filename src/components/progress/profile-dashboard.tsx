@@ -1,6 +1,7 @@
 'use client';
 
-import { Flame } from 'lucide-react';
+import { useState } from 'react';
+import { Flame, Trophy } from 'lucide-react';
 import { ACHIEVEMENTS } from '@/data/achievements';
 import { xpToNextLevel } from '@/lib/scoring/xp';
 import { cn } from '@/lib/utils';
@@ -18,10 +19,13 @@ export function ProfileDashboard({ className }: { className?: string }) {
   const rudimentMastery = useProgressStore((s) => s.rudimentMastery);
   const skills = useProgressStore((s) => s.skills);
   const unlocked = useProgressStore((s) => s.unlockedAchievements);
+  const resetProgress = useProgressStore((s) => s.resetProgress);
 
   const { current, required } = xpToNextLevel(totalXp);
   const rudimentsMastered = Object.values(rudimentMastery).filter((m) => m === 'gold').length;
   const unlockedSet = new Set(unlocked);
+  const totalAchievements = ACHIEVEMENTS.length;
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   return (
     <div className={cn('mx-auto max-w-5xl space-y-10 px-4 text-zinc-100', className)}>
@@ -67,9 +71,16 @@ export function ProfileDashboard({ className }: { className?: string }) {
       </section>
 
       <section>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-zinc-500">
-          Achievements <span className="font-normal text-zinc-600">({ACHIEVEMENTS.length})</span>
-        </h2>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-zinc-500">
+            <Trophy className="h-4 w-4 text-amber-400/80" aria-hidden />
+            Achievements
+            <span className="font-normal normal-case tracking-normal text-zinc-500">
+              <span className="tabular-nums text-zinc-300">{unlockedSet.size}</span>
+              <span className="text-zinc-600"> / {totalAchievements}</span>
+            </span>
+          </h2>
+        </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {ACHIEVEMENTS.map((a) => {
             const isUnlocked = unlockedSet.has(a.id);
@@ -92,6 +103,47 @@ export function ProfileDashboard({ className }: { className?: string }) {
             );
           })}
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-500">
+          Danger zone
+        </h2>
+        <p className="mb-4 text-sm text-zinc-400">
+          Permanently erase all XP, streaks, achievements, and skill progress from this device.
+        </p>
+        {confirmingReset ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-zinc-100">
+              This can&apos;t be undone. Reset everything?
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                resetProgress();
+                setConfirmingReset(false);
+              }}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            >
+              Yes, reset
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingReset(false)}
+              className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmingReset(true)}
+            className="rounded-lg border border-red-500/40 bg-red-950/30 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:border-red-500/70 hover:bg-red-950/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          >
+            Reset progress
+          </button>
+        )}
       </section>
     </div>
   );

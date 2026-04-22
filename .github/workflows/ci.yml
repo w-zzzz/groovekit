@@ -45,3 +45,8 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+          # Don't fail the job just because there's nothing to upload — the
+          # HTML report is only produced when Playwright runs and its output
+          # directory exists. This keeps the warning from turning into noise
+          # on green runs.
+          if-no-files-found: ignore
