@@ -50,8 +50,8 @@ test('navigate to rudiments', async ({ page }) => {
 test('navigate to grooves', async ({ page }) => {
   await page.goto('/grooves');
   await expect(page.getByRole('heading', { name: 'Groove Explorer' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Rock' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Funk' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Rock', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Funk', exact: true })).toBeVisible();
 });
 
 test('navigate to metronome', async ({ page }) => {

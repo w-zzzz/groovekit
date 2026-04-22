@@ -19,7 +19,9 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      use: { ...devices['iPhone 14'] },
+      // Use a Chromium-based mobile device so the e2e suite runs without
+      // needing the WebKit browser download (which can fail in sandboxed CI).
+      use: { ...devices['Pixel 5'] },
     },
   ],
   webServer: {
