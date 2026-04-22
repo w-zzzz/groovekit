@@ -123,7 +123,7 @@ export function DrumPad() {
             value={currentKit}
             onChange={onKitChange}
             className={cn(
-              'rounded-lg border border-border bg-card px-3 py-2.5 text-foreground',
+              'select-dark rounded-lg border border-border bg-card px-3 py-2.5 text-foreground',
               'min-h-11 touch-manipulation cursor-pointer',
               'focus:outline-none focus:ring-2 focus:ring-accent/60 focus:ring-offset-2 focus:ring-offset-background',
             )}

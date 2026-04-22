@@ -212,7 +212,7 @@ export function GrooveExplorer() {
                 setDifficulty(v === 'all' ? 'all' : (Number(v) as 1 | 2 | 3 | 4 | 5));
                 setExpandedId(null);
               }}
-              className="min-w-[8rem] rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-normal text-foreground normal-case focus:outline-none focus:ring-2 focus:ring-ring"
+              className="select-dark min-w-[8rem] rounded-lg border border-border bg-card px-2.5 py-2 text-sm font-normal text-foreground normal-case focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="all">Any</option>
               {[1, 2, 3, 4, 5].map((d) => (

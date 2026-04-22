@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 :root {
+  /* GrooveKit uses a forced dark studio theme. Tell the user agent so that
+   * native form controls (select dropdowns, scrollbars, date pickers,
+   * focus rings) pick their dark variant on macOS / iOS Safari and Windows
+   * — otherwise selects render as bright white islands on mobile Safari. */
+  color-scheme: dark;
   --background: #0A0A0F;
   --foreground: #E4E4E7;
   --muted: #18181B;
@@ -40,4 +45,27 @@ body {
 
 * {
   border-color: var(--border);
+}
+
+/* Cross-browser dark <select> styling. iOS Safari (and older Android browsers)
+ * render a native picker by default, which appears as a bright white island
+ * on top of our dark studio theme. Applying this class strips the native
+ * chrome and replaces the dropdown chevron with an SVG that inherits our
+ * muted-foreground color. */
+.select-dark {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 8l4 4 4-4'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem 1rem;
+  padding-right: 2.25rem;
+}
+
+/* Dark <option> rows on Firefox and Chrome on Windows; Safari does not style
+ * <option> at all — platform limitation, nothing we can do about it. */
+select.select-dark option {
+  background-color: var(--card);
+  color: var(--foreground);
 }
