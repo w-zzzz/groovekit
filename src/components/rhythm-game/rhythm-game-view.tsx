@@ -348,6 +348,41 @@ export function RhythmGameView({ className }: { className?: string }) {
     return () => window.clearTimeout(t);
   }, [phase, countdownTick]);
 
+  const tryHitLane = useCallback(
+    (laneIdx: number) => {
+      if (phase !== 'playing') return false;
+      if (laneIdx < 0 || laneIdx >= lanes.length) return false;
+      const start = playStartRef.current;
+      if (start == null) return false;
+      const pressT = performance.now() - start;
+
+      const list = notesRef.current;
+      const candidates = list.filter(
+        (n) =>
+          !n.resolved &&
+          n.laneIndex === laneIdx &&
+          Math.abs(pressT - n.hitTimeMs) <= INPUT_WINDOW_MS,
+      );
+      if (!candidates.length) return false;
+
+      const target = candidates.reduce((best, n) =>
+        Math.abs(pressT - n.hitTimeMs) < Math.abs(pressT - best.hitTimeMs) ? n : best,
+      );
+
+      const offset = pressT - target.hitTimeMs;
+      const g = gradeTimingAccuracy(offset);
+      if (g === 'miss') return false;
+
+      const graded: GameNote = { ...target, resolved: true, grade: g };
+      const next = list.map((n) => (n.id === target.id ? graded : n));
+      notesRef.current = next;
+      setNotes(next);
+      pushGrade(g);
+      return true;
+    },
+    [phase, lanes, pushGrade],
+  );
+
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (phase !== 'playing' || e.repeat) return;
@@ -356,33 +391,9 @@ export function RhythmGameView({ className }: { className?: string }) {
       if (!piece) return;
       const laneIdx = lanes.indexOf(piece);
       if (laneIdx < 0) return;
-
-      const start = playStartRef.current;
-      if (start == null) return;
-      const pressT = performance.now() - start;
-
-      const list = notesRef.current;
-      const candidates = list.filter(
-        (n) => !n.resolved && n.laneIndex === laneIdx && Math.abs(pressT - n.hitTimeMs) <= INPUT_WINDOW_MS
-      );
-      if (!candidates.length) return;
-
-      const target = candidates.reduce((best, n) =>
-        Math.abs(pressT - n.hitTimeMs) < Math.abs(pressT - best.hitTimeMs) ? n : best
-      );
-
-      const offset = pressT - target.hitTimeMs;
-      const g = gradeTimingAccuracy(offset);
-      if (g === 'miss') return;
-
-      const graded: GameNote = { ...target, resolved: true, grade: g };
-      const next = list.map((n) => (n.id === target.id ? graded : n));
-      notesRef.current = next;
-      setNotes(next);
-      pushGrade(g);
-      e.preventDefault();
+      if (tryHitLane(laneIdx)) e.preventDefault();
     },
-    [phase, lanes, pushGrade]
+    [phase, lanes, tryHitLane],
   );
 
   useEffect(() => {
@@ -409,7 +420,7 @@ export function RhythmGameView({ className }: { className?: string }) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Rhythm challenge</h2>
-          <p className="text-sm text-zinc-400">Hit the keys when notes cross the line.</p>
+          <p className="text-sm text-zinc-400">Press the keys or tap a lane when notes cross the line.</p>
         </div>
         <div className="flex gap-6 text-sm tabular-nums">
           <div>
@@ -550,17 +561,23 @@ export function RhythmGameView({ className }: { className?: string }) {
               ))}
             </div>
 
-            <div className="absolute inset-x-0 bottom-0 flex border-t border-zinc-800 bg-zinc-950/95 py-2">
-              {lanes.map((piece) => (
-                <div
+            <div className="absolute inset-x-0 bottom-0 flex border-t border-zinc-800 bg-zinc-950/95">
+              {lanes.map((piece, laneIdx) => (
+                <button
                   key={piece}
-                  className="flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-center"
+                  type="button"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    tryHitLane(laneIdx);
+                  }}
+                  aria-label={`Hit ${DRUM_PIECE_LABELS[piece]} lane`}
+                  className="flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 border-r border-zinc-800/80 px-1 py-2 text-center last:border-r-0 transition-colors hover:bg-zinc-900/60 active:bg-amber-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400 touch-manipulation"
                 >
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                     {pieceKeyLabel(piece)}
                   </span>
                   <span className="text-xs font-medium text-zinc-200">{DRUM_PIECE_LABELS[piece]}</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
