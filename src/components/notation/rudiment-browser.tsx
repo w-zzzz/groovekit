@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Star } from 'lucide-react';
+import { Search, Star } from 'lucide-react';
 import { RUDIMENTS } from '@/data/rudiments';
 import { useProgressStore } from '@/stores/progress-store';
 import { cn } from '@/lib/utils';
@@ -57,17 +57,40 @@ export function RudimentBrowser() {
   const [category, setCategory] = useState<RudimentCategory>('rolls');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | 1 | 2 | 3 | 4 | 5>('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
     return RUDIMENTS.filter((r) => {
       if (r.category !== category) return false;
       if (difficultyFilter !== 'all' && r.difficulty !== difficultyFilter) return false;
+      if (q.length > 0) {
+        const haystack = `${r.name} ${r.sticking} ${r.description ?? ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
-  }, [category, difficultyFilter]);
+  }, [category, difficultyFilter, query]);
 
   return (
     <div className="space-y-6">
+      <label className="relative block">
+        <span className="sr-only">Search rudiments</span>
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setExpandedId(null);
+          }}
+          placeholder="Search rudiments, sticking, description…"
+          className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </label>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-1.5">
           {CATEGORY_TABS.map((tab) => (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
 import { GROOVES } from '@/data/grooves';
 import { cn } from '@/lib/utils';
 import type { DrumPiece, Genre, Groove } from '@/types';
@@ -127,18 +128,41 @@ export function GrooveExplorer() {
   const [difficulty, setDifficulty] = useState<'all' | 1 | 2 | 3 | 4 | 5>('all');
   const [trendingOnly, setTrendingOnly] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   const list = useMemo(() => {
+    const q = query.trim().toLowerCase();
     return GROOVES.filter((g) => {
       if (genre !== 'all' && g.genre !== genre) return false;
       if (difficulty !== 'all' && g.difficulty !== difficulty) return false;
       if (trendingOnly && !g.trending) return false;
+      if (q.length > 0) {
+        const haystack = `${g.name} ${GENRE_LABEL[g.genre]}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
-  }, [genre, difficulty, trendingOnly]);
+  }, [genre, difficulty, trendingOnly, query]);
 
   return (
     <div className="space-y-6">
+      <label className="relative block">
+        <span className="sr-only">Search grooves</span>
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setExpandedId(null);
+          }}
+          placeholder="Search grooves by name or genre…"
+          className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </label>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Genre</p>
