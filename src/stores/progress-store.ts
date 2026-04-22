@@ -26,6 +26,7 @@ interface ProgressState {
   updateSkill: (skill: keyof SkillProfile, value: number) => void;
   checkAndUpdateStreak: () => void;
   useStreakFreeze: () => boolean;
+  resetProgress: () => void;
 }
 
 export const useProgressStore = create<ProgressState>()(
@@ -120,6 +121,21 @@ export const useProgressStore = create<ProgressState>()(
         set({ streakFreezes: s.streakFreezes - 1 });
         return true;
       },
+
+      resetProgress: () => set({
+        totalXp: 0,
+        level: 1,
+        streakDays: 0,
+        lastPracticeDate: null,
+        streakFreezes: 3,
+        lessonsCompleted: [],
+        rudimentMastery: {},
+        gamesPlayed: 0,
+        highScores: {},
+        practiceMinutes: 0,
+        unlockedAchievements: [],
+        skills: { timing: 0, speed: 0, dynamics: 0, coordination: 0, reading: 0, creativity: 0 },
+      }),
     }),
     { name: 'groovekit-progress' }
   )
