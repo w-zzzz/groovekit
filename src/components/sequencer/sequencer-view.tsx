@@ -276,22 +276,6 @@ export function SequencerView() {
           <Button type="button" size="sm" variant="secondary" onClick={() => void handleShare()}>
             {copied ? 'Copied' : 'Share URL'}
           </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (isPlaying) {
-                clearTransport();
-                getTransport().stop();
-                setPlaying(false);
-              }
-              clearGrid();
-            }}
-          >
-            Clear grid
-          </Button>
         </div>
 
         <div className="flex min-w-0 gap-0 rounded-lg border border-border bg-card">
