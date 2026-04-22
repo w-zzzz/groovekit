@@ -194,6 +194,10 @@ export function RhythmGameView({ className }: { className?: string }) {
   const recordedRef = useRef(false);
   const comboRef = useRef(0);
   const challengeRef = useRef(CHALLENGES[0]);
+  // Mirror of challengeRef for values that need to be read during render
+  // (e.g. the results screen). The ref stays around for non-render reads
+  // inside effects / callbacks to avoid re-creating them on every tick.
+  const [activeChallenge, setActiveChallenge] = useState(CHALLENGES[0]);
 
   const lanes = LANES[difficulty];
 
@@ -249,49 +253,54 @@ export function RhythmGameView({ className }: { className?: string }) {
 
   const gameLoop = useRef<() => void>(() => {});
 
-  gameLoop.current = () => {
-    const start = playStartRef.current;
-    if (start == null) return;
+  // Keep gameLoop.current fresh when finishToResults (which closes over
+  // stopLoop) changes. Assigning inside an effect rather than during render
+  // keeps React's strict render-phase semantics happy.
+  useEffect(() => {
+    gameLoop.current = () => {
+      const start = playStartRef.current;
+      if (start == null) return;
 
-    const now = performance.now();
-    const t = now - start;
-    setSongTimeMs(t);
+      const now = performance.now();
+      const t = now - start;
+      setSongTimeMs(t);
 
-    const noteList = notesRef.current;
-    let mutated = false;
-    let missCount = 0;
-    const nextNotes = noteList.map((n) => {
-      if (n.resolved) return n;
-      if (t > n.hitTimeMs + MISS_LATE_MS) {
-        mutated = true;
-        missCount++;
-        return { ...n, resolved: true, grade: 'miss' as TimingGrade };
+      const noteList = notesRef.current;
+      let mutated = false;
+      let missCount = 0;
+      const nextNotes = noteList.map((n) => {
+        if (n.resolved) return n;
+        if (t > n.hitTimeMs + MISS_LATE_MS) {
+          mutated = true;
+          missCount++;
+          return { ...n, resolved: true, grade: 'miss' as TimingGrade };
+        }
+        return n;
+      });
+
+      if (mutated) {
+        notesRef.current = nextNotes;
+        setNotes(nextNotes);
+        if (missCount > 0) {
+          setGrades((prev) => [...prev, ...Array.from({ length: missCount }, (): TimingGrade => 'miss')]);
+          comboRef.current = 0;
+          setCombo(0);
+          setPopup({ grade: 'miss', at: performance.now() });
+        }
       }
-      return n;
-    });
 
-    if (mutated) {
-      notesRef.current = nextNotes;
-      setNotes(nextNotes);
-      if (missCount > 0) {
-        setGrades((prev) => [...prev, ...Array.from({ length: missCount }, (): TimingGrade => 'miss')]);
-        comboRef.current = 0;
-        setCombo(0);
-        setPopup({ grade: 'miss', at: performance.now() });
+      const resolvedAll = nextNotes.every((n) => n.resolved);
+      const lastHit = nextNotes.length ? Math.max(...nextNotes.map((n) => n.hitTimeMs)) : 0;
+      if (resolvedAll && t > lastHit + MISS_LATE_MS + 250) {
+        const chronological = [...nextNotes].sort((a, b) => a.hitTimeMs - b.hitTimeMs);
+        const gList = chronological.map((n) => n.grade!);
+        finishToResults(gList);
+        return;
       }
-    }
 
-    const resolvedAll = nextNotes.every((n) => n.resolved);
-    const lastHit = nextNotes.length ? Math.max(...nextNotes.map((n) => n.hitTimeMs)) : 0;
-    if (resolvedAll && t > lastHit + MISS_LATE_MS + 250) {
-      const chronological = [...nextNotes].sort((a, b) => a.hitTimeMs - b.hitTimeMs);
-      const gList = chronological.map((n) => n.grade!);
-      finishToResults(gList);
-      return;
-    }
-
-    rafRef.current = requestAnimationFrame(() => gameLoop.current());
-  };
+      rafRef.current = requestAnimationFrame(() => gameLoop.current());
+    };
+  }, [finishToResults]);
 
   useLayoutEffect(() => {
     if (phase !== 'countdown' && phase !== 'playing') return;
@@ -321,6 +330,7 @@ export function RhythmGameView({ className }: { className?: string }) {
   const startCountdown = useCallback(() => {
     recordedRef.current = false;
     challengeRef.current = CHALLENGES[challengeIndex];
+    setActiveChallenge(CHALLENGES[challengeIndex]);
     const built = buildGameNotes(CHALLENGES[challengeIndex], LANES[difficulty]);
     notesRef.current = built;
     setNotes(built);
@@ -337,8 +347,11 @@ export function RhythmGameView({ className }: { className?: string }) {
   useEffect(() => {
     if (phase !== 'countdown') return;
     if (countdownTick < 0) {
-      setPhase('playing');
-      return;
+      // Defer the transition to the next microtask so it runs after React has
+      // committed the current countdown render. This avoids a cascading
+      // render that the react-hooks/set-state-in-effect lint rule flags.
+      const cancel = window.setTimeout(() => setPhase('playing'), 0);
+      return () => window.clearTimeout(cancel);
     }
     if (countdownTick === 0) {
       const t = window.setTimeout(() => setCountdownTick(-1), 500);
@@ -602,7 +615,7 @@ export function RhythmGameView({ className }: { className?: string }) {
             </div>
             <div>
               <p className="text-xs uppercase text-zinc-500">Challenge</p>
-              <p className="text-sm font-medium text-zinc-200">{challengeRef.current.name}</p>
+              <p className="text-sm font-medium text-zinc-200">{activeChallenge.name}</p>
             </div>
           </div>
           <div>
