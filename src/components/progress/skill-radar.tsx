@@ -18,10 +18,15 @@ export interface SkillRadarProps {
   className?: string;
 }
 
+function round(n: number) {
+  // Consistent rounding avoids server/client float-precision hydration mismatches.
+  return Math.round(n * 1000) / 1000;
+}
+
 function polarPoint(cx: number, cy: number, radius: number, angleRad: number) {
   return {
-    x: cx + radius * Math.sin(angleRad),
-    y: cy - radius * Math.cos(angleRad),
+    x: round(cx + radius * Math.sin(angleRad)),
+    y: round(cy - radius * Math.cos(angleRad)),
   };
 }
 
